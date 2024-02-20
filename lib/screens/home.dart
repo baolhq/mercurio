@@ -5,6 +5,8 @@ import 'package:mercurio/tags_list.dart';
 import 'package:mercurio/widgets/colored_safe_area.dart';
 import 'package:mercurio/widgets/search_box.dart';
 import 'package:mercurio/widgets/tags_panel.dart';
+import 'package:dio/dio.dart';
+import 'package:xml/xml.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -25,21 +27,61 @@ class _HomeState extends State<Home> {
     _updateList(Tags.tags[0]);
   }
 
-  void _updateList(String tag) {
-    for (var i = 0; i < 100; i++) {
-      setState(() {
-        articles.add(Article(
-            title: "Jeffrey Wright on American Fiction",
-            link:
-                "https://www.nytimes.com/2024/02/13/movies/jeffrey-wright-american-fiction.html",
-            desc:
-                "The veteran has played everything from an artist to a general to a professor, the role in “American Fiction” that finally landed him an Oscar nomination.",
-            creator: "Sarah Lyall",
-            pubDate: DateTime(2024, 2, 13, 15, 18, 8),
-            thumbnailUrl:
-                "https://static01.nyt.com/images/2024/02/13/multimedia/13IZZARD-HAMLET-1-ktvm/13IZZARD-HAMLET-1-ktvm-mediumSquareAt3X.jpg",
-            thumbnailCredit: "Sara Krulwich"));
-      });
+  void _updateList(String tag) async {
+    // Remove whitespace
+    final trimmedTag = tag.replaceAll(" ", "");
+    final baseUrl =
+        "https://rss.nytimes.com/services/xml/rss/nyt/$trimmedTag.xml";
+
+    final dio = Dio();
+    final res = await dio.get(baseUrl);
+
+    if (res.statusCode == 200) {
+      final doc = XmlDocument.parse(res.data);
+      final articlesXml = doc.findAllElements("item");
+
+      for (var art in articlesXml) {
+        String title,
+            desc,
+            link,
+            creator,
+            pubDate,
+            mediaContent =
+                "https://img.freepik.com/free-vector/illustration-gallery-icon_53876-27002.jpg",
+            mediaCredit = "";
+
+        title = art.findElements("title").first.innerText;
+        desc = art.findElements("description").first.innerText;
+        link = art.findElements("link").first.innerText;
+        creator = art.findElements("dc:creator").first.innerText;
+        pubDate = art.findElements("pubDate").first.innerText;
+
+        if (art.findElements("media:content").isNotEmpty) {
+          String url = art
+              .findElements("media:content")
+              .first
+              .getAttribute("url")
+              .toString();
+          mediaContent = url.startsWith("https://") ? url : "https://$url";
+        }
+
+        if (art.findElements("media:credit").isNotEmpty) {
+          mediaCredit = art.findElements("media:credit").first.innerText;
+        }
+
+        setState(() {
+          articles.add(Article(
+              title: title,
+              desc: desc,
+              link: link,
+              creator: creator,
+              pubDate: DateTime.now(),
+              thumbnailUrl: mediaContent,
+              thumbnailCredit: mediaCredit));
+        });
+      }
+    } else {
+      throw Exception('Failed to load articles');
     }
   }
 
@@ -49,7 +91,8 @@ class _HomeState extends State<Home> {
         color: Theme.of(context).primaryColor,
         child: Container(
           color: Theme.of(context).scaffoldBackgroundColor,
-          child: CustomScrollView(slivers: [
+          child:
+              CustomScrollView(cacheExtent: 3500, shrinkWrap: false, slivers: [
             SliverAppBar(
                 floating: true,
                 snap: true,
@@ -175,7 +218,10 @@ class _HomeState extends State<Home> {
               width: 128,
               height: 128,
               padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
-              child: Image.network(thumbnailUrl))
+              child: Image.network(
+                thumbnailUrl,
+                fit: BoxFit.cover,
+              ))
         ]),
       ),
     );

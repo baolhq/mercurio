@@ -15,4 +15,27 @@ class Article {
       required this.pubDate,
       this.thumbnailUrl = "",
       this.thumbnailCredit = ""});
+
+  factory Article.fromJson(Map<String, dynamic> json) {
+    return switch (json) {
+      {
+        "title": String title,
+        "desc": String desc,
+        "link": String link,
+        "creator": String creator,
+        "pubDate": String pubDate,
+        "mediaContent": String mediaContent,
+        "mediaCredit": String mediaCredit
+      } =>
+        Article(
+            title: title,
+            desc: desc,
+            link: link,
+            creator: creator,
+            pubDate: DateTime.now(),
+            thumbnailUrl: mediaContent,
+            thumbnailCredit: mediaCredit),
+      _ => throw const FormatException("Failed to load article.")
+    };
+  }
 }

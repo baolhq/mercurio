@@ -1,8 +1,8 @@
 class Tags {
   static const List<String> tags = [
-    "Popular",
+    "Most Viewed",
     "Most Shared",
-    "Art",
+    "Arts",
     "Business",
     "Climate",
     "Economy",
